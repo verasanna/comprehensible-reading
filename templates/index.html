@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comprehensible Reading</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1714;
+    --ink-muted: #6b6560;
+    --ink-faint: #b8b3ae;
+    --paper: #f7f4ef;
+    --paper-warm: #efe9df;
+    --paper-card: #faf8f5;
+    --accent: #c4622d;
+    --accent-light: #f0ddd3;
+    --accent-dark: #8f3f18;
+    --green: #3a6b4a;
+    --green-light: #d4e8db;
+    --amber: #a06b1a;
+    --amber-light: #f0e0c0;
+    --red: #8f2d2d;
+    --red-light: #f0d4d4;
+    --blue: #2d4e8f;
+    --blue-light: #d4dff0;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(26,23,20,0.08), 0 4px 16px rgba(26,23,20,0.06);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  header {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 1.1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.35rem;
+    letter-spacing: -0.01em;
+  }
+  .logo em { color: var(--accent); font-style: italic; }
+  nav { display: flex; gap: 4px; }
+  .nav-btn {
+    background: transparent;
+    border: none;
+    color: var(--ink-faint);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 7px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .nav-btn:hover { color: var(--paper); background: rgba(255,255,255,0.1); }
+  .nav-btn.active { color: var(--ink); background: var(--paper-warm); }
+
+  main { max-width: 820px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 1.5px dashed var(--ink-faint);
+    border-radius: var(--radius);
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--paper-card);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .drop-zone input { display: none; }
+  .drop-icon {
+    font-family: 'Playfair Display', serif;
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .drop-title { font-size: 1.1rem; font-weight: 500; margin-bottom: 0.5rem; }
+  .drop-sub { font-size: 13px; color: var(--ink-muted); }
+  .file-types { display: flex; justify-content: center; gap: 8px; margin-top: 1.25rem; }
+  .file-tag {
+    font-size: 11px; font-weight: 500; padding: 3px 10px;
+    border-radius: 20px; border: 1px solid var(--ink-faint);
+    color: var(--ink-muted); letter-spacing: 0.06em; text-transform: uppercase;
+  }
+
+  /* Language banner */
+  .lang-banner {
+    border-radius: var(--radius-sm);
+    padding: 0.7rem 1rem;
+    font-size: 13px;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .lang-ok   { background: var(--green-light); border: 1px solid #80b890; color: var(--green); }
+  .lang-warn { background: var(--amber-light); border: 1px solid #d4a060; color: var(--amber); }
+  .lang-err  { background: var(--red-light);   border: 1px solid #d4a0a0; color: var(--red); }
+
+  /* Stats */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px; margin: 1.25rem 0;
+  }
+  .stat-card {
+    background: var(--paper-card); border: 1px solid var(--paper-warm);
+    border-radius: var(--radius-sm); padding: 0.85rem 1rem; box-shadow: var(--shadow);
+  }
+  .stat-label {
+    font-size: 10px; color: var(--ink-muted); text-transform: uppercase;
+    letter-spacing: 0.07em; font-weight: 500; margin-bottom: 4px;
+  }
+  .stat-val { font-size: 1.35rem; font-weight: 500; font-family: 'Playfair Display', serif; }
+
+  /* Formula cards */
+  .formula-card {
+    background: var(--paper-card); border: 1px solid var(--paper-warm);
+    border-radius: var(--radius); padding: 1.1rem 1.25rem;
+    margin-bottom: 10px; box-shadow: var(--shadow);
+  }
+  .formula-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .formula-name { font-size: 14px; font-weight: 500; }
+  .formula-score { font-size: 2rem; font-weight: 400; font-family: 'Playfair Display', serif; }
+  .formula-level-label { font-size: 11px; color: var(--ink-muted); text-align: right; margin-top: 2px; }
+  .formula-desc { font-size: 12px; color: var(--ink-muted); margin-top: 6px; line-height: 1.6; }
+  .bar-wrap { margin-top: 10px; height: 4px; border-radius: 2px; background: var(--paper-warm); overflow: hidden; }
+  .bar { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+  /* Badges */
+  .badge {
+    display: inline-block; font-size: 10px; font-weight: 500;
+    padding: 2px 8px; border-radius: 20px; margin-left: 6px;
+    letter-spacing: 0.03em; text-transform: uppercase; vertical-align: middle;
+  }
+  .badge-easy   { background: var(--green-light); color: var(--green); }
+  .badge-medium { background: var(--amber-light); color: var(--amber); }
+  .badge-hard   { background: var(--red-light);   color: var(--red); }
+
+  /* Buttons */
+  .btn {
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; border-radius: var(--radius-sm); padding: 7px 16px;
+    transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-outline { background: transparent; border: 1px solid var(--ink-faint); color: var(--ink); }
+  .btn-outline:hover { border-color: var(--ink); background: var(--paper-warm); }
+  .btn-primary { background: var(--ink); border: 1px solid var(--ink); color: var(--paper); }
+  .btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+  .btn-accent  { background: var(--accent); border: 1px solid var(--accent); color: white; }
+  .btn-accent:hover { background: var(--accent-dark); }
+  .btn-danger  { background: transparent; border: 1px solid #d4a0a0; color: var(--red); }
+  .btn-danger:hover { background: var(--red-light); }
+
+  /* Result header */
+  .result-header {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; gap: 16px; margin-bottom: 1.5rem;
+  }
+  .result-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem; font-weight: 600; line-height: 1.3;
+  }
+  .result-meta { font-size: 13px; color: var(--ink-muted); margin-top: 4px; }
+  .result-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+
+  /* Section label */
+  .section-label {
+    font-size: 10px; font-weight: 500; color: var(--ink-muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 10px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--paper-warm);
+  }
+
+  /* Library summary */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px; margin-bottom: 1.5rem;
+  }
+  .summary-card {
+    background: var(--ink); color: var(--paper);
+    border-radius: var(--radius-sm); padding: 1rem 1.1rem;
+  }
+  .summary-card .stat-label { color: var(--ink-faint); }
+  .summary-card .stat-val   { color: var(--paper); }
+
+  /* Book cards */
+  .book-card {
+    background: var(--paper-card); border: 1px solid var(--paper-warm);
+    border-radius: var(--radius); padding: 1.1rem 1.25rem;
+    margin-bottom: 10px; box-shadow: var(--shadow);
+  }
+  .book-card-header {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; gap: 12px; margin-bottom: 10px;
+  }
+  .book-title {
+    font-size: 15px; font-weight: 500; margin-bottom: 3px;
+    font-family: 'Playfair Display', serif;
+  }
+  .book-meta { font-size: 12px; color: var(--ink-muted); }
+  .book-scores {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    font-size: 12px; color: var(--ink-muted); margin-top: 6px;
+  }
+  .book-scores strong { color: var(--ink); font-weight: 500; }
+  .book-card-body {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+    padding-top: 10px; border-top: 1px solid var(--paper-warm);
+  }
+
+  .status-badge {
+    font-size: 11px; font-weight: 500; padding: 3px 10px;
+    border-radius: 20px; display: inline-block;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .s-reading  { background: var(--blue-light);  color: var(--blue); }
+  .s-finished { background: var(--green-light); color: var(--green); }
+  .s-planned  { background: var(--paper-warm);  color: var(--ink-muted); }
+  .s-paused   { background: var(--amber-light); color: var(--amber); }
+
+  /* Form elements */
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-label {
+    font-size: 11px; color: var(--ink-muted); font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  select, input[type="date"] {
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    padding: 6px 10px; border: 1px solid var(--paper-warm);
+    border-radius: var(--radius-sm); background: var(--paper);
+    color: var(--ink); outline: none; transition: border-color 0.15s;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+
+  .toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 1.25rem; gap: 10px; flex-wrap: wrap;
+  }
+  .toolbar-actions { display: flex; gap: 8px; }
+
+  .empty-state {
+    text-align: center; padding: 4rem 2rem; color: var(--ink-muted);
+  }
+  .empty-icon {
+    font-family: 'Playfair Display', serif; font-size: 3rem;
+    color: var(--ink-faint); margin-bottom: 1rem;
+    display: block; font-style: italic;
+  }
+
+  .error-box {
+    background: var(--red-light); border: 1px solid #d4a0a0;
+    border-radius: var(--radius-sm); padding: 0.75rem 1rem;
+    font-size: 13px; color: var(--red); margin-top: 1rem;
+  }
+  .processing {
+    text-align: center; padding: 3rem; color: var(--ink-muted); font-size: 14px;
+  }
+  .spinner {
+    display: inline-block; width: 20px; height: 20px;
+    border: 2px solid var(--paper-warm); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 1rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .divider { height: 1px; background: var(--paper-warm); margin: 1.5rem 0; }
+
+  @media (max-width: 600px) {
+    header { padding: 1rem; }
+    main { padding: 1.5rem 1rem; }
+    .logo { font-size: 1.1rem; }
+    .result-header { flex-direction: column; }
+    .result-actions { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Comprehensible <em>Reading</em></div>
+  <nav>
+    <button class="nav-btn active" onclick="showTab('analyzer')">Analyze</button>
+    <button class="nav-btn" onclick="showTab('library')">My Library</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ── ANALYZER TAB ── -->
+  <div id="tab-analyzer" class="tab-content active">
+    <div id="dropArea" class="drop-zone">
+      <input type="file" id="fileInput" accept=".epub,.pdf">
+      <span class="drop-icon">A</span>
+      <div class="drop-title">Drop your Spanish book here</div>
+      <div class="drop-sub">Processed on your local server — nothing leaves your machine</div>
+      <div class="file-types">
+        <span class="file-tag">epub</span>
+        <span class="file-tag">pdf</span>
+      </div>
+    </div>
+    <div id="analyzerOutput"></div>
+  </div>
+
+  <!-- ── LIBRARY TAB ── -->
+  <div id="tab-library" class="tab-content">
+    <div id="summaryArea"></div>
+    <div class="toolbar">
+      <div class="section-label" style="margin:0;border:none;padding:0">Books</div>
+      <div class="toolbar-actions">
+        <button class="btn btn-outline" onclick="exportJSON()">↓ Export JSON</button>
+        <label class="btn btn-outline" style="cursor:pointer">
+          ↑ Import JSON
+          <input type="file" accept=".json" style="display:none" onchange="importJSON(this)">
+        </label>
+      </div>
+    </div>
+    <div id="libraryList"></div>
+  </div>
+
+</main>
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────
+// Tab routing
+// ─────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if (b.textContent.toLowerCase().includes(name === 'analyzer' ? 'analyz' : 'library'))
+      b.classList.add('active');
+  });
+  if (name === 'library') loadAndRenderLibrary();
+}
+
+// ─────────────────────────────────────────────
+// Drop zone
+// ─────────────────────────────────────────────
+const dropArea  = document.getElementById('dropArea');
+const fileInput = document.getElementById('fileInput');
+
+dropArea.addEventListener('click', () => fileInput.click());
+dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('drag-over'); });
+dropArea.addEventListener('dragleave', () => dropArea.classList.remove('drag-over'));
+dropArea.addEventListener('drop', e => {
+  e.preventDefault(); dropArea.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+async function handleFile(file) {
+  const out = document.getElementById('analyzerOutput');
+  out.innerHTML = '<div class="processing"><div class="spinner"></div><br>Extracting and analysing…</div>';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/api/analyse', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || 'Server error.'); return; }
+    renderAnalysis(data);
+  } catch(e) {
+    showError('Could not reach the server: ' + e.message);
+  }
+}
+
+function showError(msg) {
+  document.getElementById('analyzerOutput').innerHTML = `<div class="error-box">${esc(msg)}</div>`;
+}
+
+// ─────────────────────────────────────────────
+// Level interpretation
+// ─────────────────────────────────────────────
+function fleschLevel(score) {
+  if (score >= 75) return { label:'Very easy (A1–A2)',    badge:'easy',   color:'var(--green)', pct: Math.min(100, score) };
+  if (score >= 60) return { label:'Easy (A2–B1)',         badge:'easy',   color:'var(--green)', pct: score };
+  if (score >= 50) return { label:'Medium (B1–B2)',       badge:'medium', color:'var(--amber)', pct: score };
+  if (score >= 35) return { label:'Difficult (B2–C1)',    badge:'hard',   color:'var(--red)',   pct: score };
+  return              { label:'Very difficult (C1–C2)', badge:'hard',   color:'var(--red)',   pct: Math.max(3, score) };
+}
+function crawfordLevel(g) {
+  if (g <= 2) return { label:'Primary (A1–A2)',       badge:'easy',   color:'var(--green)', pct: 85 };
+  if (g <= 4) return { label:'Elementary (A2–B1)',    badge:'easy',   color:'var(--green)', pct: 65 };
+  if (g <= 6) return { label:'Intermediate (B1–B2)',  badge:'medium', color:'var(--amber)', pct: 45 };
+  if (g <= 9) return { label:'Advanced (B2–C1)',      badge:'hard',   color:'var(--red)',   pct: 28 };
+  return              { label:'Expert (C1–C2)',        badge:'hard',   color:'var(--red)',   pct: 10 };
+}
+
+function fmtN(n, d=1) { return (typeof n === 'number' && !isNaN(n)) ? n.toFixed(d) : '—'; }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/'/g,'&#39;'); }
+
+function badgeHtml(b) {
+  const cls = b==='easy' ? 'badge-easy' : b==='medium' ? 'badge-medium' : 'badge-hard';
+  const lbl = b==='easy' ? 'Accessible' : b==='medium' ? 'Moderate' : 'Challenging';
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+
+// ─────────────────────────────────────────────
+// Render analysis result
+// ─────────────────────────────────────────────
+function renderAnalysis(data) {
+  const { title, stats: s, scores: sc, language: lang } = data;
+
+  // Language banner
+  let langCls, langMsg;
+  if (lang.lang === 'unknown') {
+    langCls = 'lang-err';
+    langMsg = '⚠ Could not reliably detect the language. Results may be inaccurate.';
+  } else if (!lang.is_spanish) {
+    langCls = 'lang-warn';
+    langMsg = `⚠ This text appears to be <strong>${esc(lang.lang_name)}</strong>, not Spanish. Scores are calibrated for Spanish and may not be meaningful here.`;
+  } else if (lang.confidence === 'low') {
+    langCls = 'lang-warn';
+    langMsg = '⚠ Detected as Spanish but with low confidence. Results may be less accurate.';
+  } else {
+    langCls = 'lang-ok';
+    langMsg = `✓ Detected as Spanish (${esc(lang.confidence)} confidence)`;
+  }
+
+  const formulas = [
+    {
+      name: 'Flesch Reading Ease (adapted)',
+      score: fmtN(sc.flesch, 1), unit: '',
+      lev: fleschLevel(sc.flesch),
+      desc: 'Scores 0–100; higher = easier. Considers average sentence length and syllables per word. Adapted for Spanish.',
+    },
+    {
+      name: 'Szigriszt–Pazos (Perspicuidad)',
+      score: fmtN(sc.szigriszt, 1), unit: '',
+      lev: fleschLevel(sc.szigriszt),
+      desc: 'The gold standard for Spanish readability. Coefficients recalibrated for Spanish morphology. Higher = easier.',
+    },
+    {
+      name: 'Crawford Formula',
+      score: fmtN(sc.crawford, 1), unit: ' grade',
+      lev: crawfordLevel(sc.crawford),
+      desc: 'Designed specifically for Spanish. Predicts school grade level (1–9+) from sentence and syllable density.',
+    },
+  ];
+
+  // Store for add-to-library
+  window._lastAnalysis = {
+    id: Date.now(),
+    title,
+    words: s.total_words,
+    scores: {
+      flesch:    +fmtN(sc.flesch, 1),
+      szigriszt: +fmtN(sc.szigriszt, 1),
+      crawford:  +fmtN(sc.crawford, 1),
+    },
+    status: 'planned',
+    dateAdded: new Date().toISOString().slice(0, 10),
+    dateStarted: '',
+    dateFinished: '',
+  };
+
+  document.getElementById('analyzerOutput').innerHTML = `
+    <div style="margin-top:1.75rem">
+      <div class="lang-banner ${langCls}">${langMsg}</div>
+
+      <div class="result-header">
+        <div>
+          <div class="result-title">${esc(title)}</div>
+          <div class="result-meta">
+            ${s.total_words.toLocaleString()} words ·
+            ${s.total_sentences.toLocaleString()} sentences ·
+            ${s.total_syllables.toLocaleString()} syllables
+          </div>
+        </div>
+        <div class="result-actions">
+          <button class="btn btn-accent" onclick="addToLibrary()">+ Add to library</button>
+          <button class="btn btn-outline" onclick="resetAnalyzer()">↩ New file</button>
+        </div>
+      </div>
+
+      <div class="section-label">Text statistics</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Words</div><div class="stat-val">${s.total_words.toLocaleString()}</div></div>
+        <div class="stat-card"><div class="stat-label">Sentences</div><div class="stat-val">${s.total_sentences.toLocaleString()}</div></div>
+        <div class="stat-card"><div class="stat-label">Avg sent. length</div><div class="stat-val">${fmtN(s.avg_sent_len, 1)}</div></div>
+        <div class="stat-card"><div class="stat-label">Syllables / word</div><div class="stat-val">${fmtN(s.avg_syllables_per_word, 2)}</div></div>
+        <div class="stat-card"><div class="stat-label">Chars / word</div><div class="stat-val">${fmtN(s.avg_chars_per_word, 2)}</div></div>
+        <div class="stat-card"><div class="stat-label">Polysyllabic %</div><div class="stat-val">${fmtN(s.polysyllabic_pct, 1)}%</div></div>
+      </div>
+
+      <div class="section-label" style="margin-top:1.5rem">Readability formulas</div>
+      ${formulas.map(f => `
+        <div class="formula-card">
+          <div class="formula-header">
+            <div>
+              <div class="formula-name">${f.name}${badgeHtml(f.lev.badge)}</div>
+              <div class="formula-desc">${f.desc}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div class="formula-score" style="color:${f.lev.color}">${f.score}${f.unit}</div>
+              <div class="formula-level-label">${f.lev.label}</div>
+            </div>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar" style="width:${Math.max(3, Math.min(100, f.lev.pct))}%;background:${f.lev.color}"></div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function resetAnalyzer() {
+  document.getElementById('analyzerOutput').innerHTML = '';
+  fileInput.value = '';
+  window._lastAnalysis = null;
+}
+
+// ─────────────────────────────────────────────
+// Library — API helpers
+// ─────────────────────────────────────────────
+async function apiGet(url) {
+  const res = await fetch(url);
+  return res.json();
+}
+async function apiPost(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+async function apiPatch(url, body) {
+  return fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+async function apiDelete(url) {
+  return fetch(url, { method: 'DELETE' });
+}
+
+// ─────────────────────────────────────────────
+// Library — add from analysis
+// ─────────────────────────────────────────────
+async function addToLibrary() {
+  const book = window._lastAnalysis;
+  if (!book) return;
+
+  const res = await apiPost('/api/library', book);
+  if (res.status === 409) {
+    alert('This book is already in your library.');
+    return;
+  }
+  if (!res.ok) {
+    const data = await res.json();
+    alert(data.error || 'Could not add book.');
+    return;
+  }
+  showTab('library');
+}
+
+// ─────────────────────────────────────────────
+// Library — render
+// ─────────────────────────────────────────────
+async function loadAndRenderLibrary() {
+  const books = await apiGet('/api/library');
+  renderLibrary(books);
+}
+
+function statusBadge(s) {
+  const cls = { reading:'s-reading', finished:'s-finished', planned:'s-planned', paused:'s-paused' }[s] || 's-planned';
+  const lbl = { reading:'Reading', finished:'Finished', planned:'Planned', paused:'Paused' }[s] || s;
+  return `<span class="status-badge ${cls}">${lbl}</span>`;
+}
+
+function renderLibrary(books) {
+  const summaryArea = document.getElementById('summaryArea');
+  const listEl      = document.getElementById('libraryList');
+
+  const total      = books.length;
+  const finished   = books.filter(b => b.status === 'finished').length;
+  const reading    = books.filter(b => b.status === 'reading').length;
+  const readWords  = books
+    .filter(b => b.status === 'finished')
+    .reduce((a, b) => a + (b.words || 0), 0);
+
+  summaryArea.innerHTML = `
+    <div class="section-label">Reading statistics</div>
+    <div class="summary-grid">
+      <div class="summary-card"><div class="stat-label">Total books</div><div class="stat-val">${total}</div></div>
+      <div class="summary-card"><div class="stat-label">Finished</div><div class="stat-val">${finished}</div></div>
+      <div class="summary-card"><div class="stat-label">Currently reading</div><div class="stat-val">${reading}</div></div>
+      <div class="summary-card"><div class="stat-label">Words read</div><div class="stat-val">${readWords.toLocaleString()}</div></div>
+    </div>
+    <div class="divider"></div>`;
+
+  if (!books.length) {
+    listEl.innerHTML = `<div class="empty-state">
+      <span class="empty-icon">𝔅</span>
+      Your library is empty.<br>
+      Analyse a book and click <strong>+ Add to library</strong>.
+    </div>`;
+    return;
+  }
+
+  const order  = { reading:0, paused:1, planned:2, finished:3 };
+  const sorted = [...books].sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+
+  listEl.innerHTML = sorted.map(book => {
+    const sc = book.scores || {};
+    const hasScores = Object.keys(sc).length > 0;
+    return `
+    <div class="book-card">
+      <div class="book-card-header">
+        <div>
+          <div class="book-title">${esc(book.title)}</div>
+          <div class="book-meta">Added ${book.dateAdded || '—'}</div>
+          ${hasScores ? `<div class="book-scores">
+            ${sc.flesch     !== undefined ? `<span>Flesch <strong>${sc.flesch}</strong></span>`         : ''}
+            ${sc.szigriszt  !== undefined ? `<span>Szigriszt <strong>${sc.szigriszt}</strong></span>`   : ''}
+            ${sc.crawford   !== undefined ? `<span>Crawford <strong>${sc.crawford}</strong></span>`     : ''}
+          </div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+          ${statusBadge(book.status)}
+          <button class="btn btn-danger" style="padding:4px 10px;font-size:12px"
+            onclick="deleteBook(${book.id})">Remove</button>
+        </div>
+      </div>
+      <div class="book-card-body">
+        <div class="form-group">
+          <div class="form-label">Status</div>
+          <select onchange="updateBook(${book.id}, 'status', this.value)">
+            ${['planned','reading','paused','finished'].map(s =>
+              `<option value="${s}"${book.status===s?' selected':''}>${s[0].toUpperCase()+s.slice(1)}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Started</div>
+          <input type="date" value="${book.dateStarted||''}"
+            onchange="updateBook(${book.id}, 'dateStarted', this.value)">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Finished</div>
+          <input type="date" value="${book.dateFinished||''}"
+            onchange="updateBook(${book.id}, 'dateFinished', this.value)">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function updateBook(id, field, val) {
+  const update = { [field]: val };
+  // Auto-fill dates when status changes
+  if (field === 'status') {
+    const today = new Date().toISOString().slice(0, 10);
+    if (val === 'reading')  update.dateStarted  = update.dateStarted  || today;
+    if (val === 'finished') update.dateFinished = update.dateFinished || today;
+  }
+  await apiPatch(`/api/library/${id}`, update);
+  loadAndRenderLibrary();
+}
+
+async function deleteBook(id) {
+  if (!confirm('Remove this book from your library?')) return;
+  await apiDelete(`/api/library/${id}`);
+  loadAndRenderLibrary();
+}
+
+// ─────────────────────────────────────────────
+// Import / Export
+// ─────────────────────────────────────────────
+function exportJSON() {
+  fetch('/api/library')
+    .then(r => r.json())
+    .then(books => {
+      const data = JSON.stringify({ exported: new Date().toISOString(), books }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'comprehensible-reading-library.json'; a.click();
+      URL.revokeObjectURL(url);
+    });
+}
+
+async function importJSON(input) {
+  const file = input.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    const res  = await apiPost('/api/library/import', payload);
+    const data = await res.json();
+    alert(`Imported ${data.imported} book(s). ${data.skipped} already existed.`);
+    input.value = '';
+    loadAndRenderLibrary();
+  } catch(e) {
+    alert('Could not import: ' + e.message);
+  }
+}
+</script>
+</body>
+</html>
