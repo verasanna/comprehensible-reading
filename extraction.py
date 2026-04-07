@@ -4,19 +4,48 @@ extraction.py — text extraction from .epub and .pdf files.
 Supports:
   - EPUB via ebooklib
   - PDF via PyMuPDF (fitz)
+
+All extractors return (text, title, author).
 """
 
 from __future__ import annotations
 
+import re
+import zipfile
 from pathlib import Path
+
+
+# ─────────────────────────────────────────────────────────────
+# EPUB metadata (reads OPF directly — no ebooklib needed)
+# ─────────────────────────────────────────────────────────────
+
+def _read_opf_metadata(path: Path) -> dict:
+    """Return {title, author} from the OPF metadata inside an EPUB ZIP."""
+    result = {"title": "", "author": ""}
+    try:
+        with zipfile.ZipFile(path) as z:
+            container = z.read("META-INF/container.xml").decode("utf-8", errors="replace")
+            m = re.search(r'full-path="([^"]+\.opf)"', container)
+            if not m:
+                return result
+            opf = z.read(m.group(1)).decode("utf-8", errors="replace")
+            t = re.search(r"<dc:title[^>]*>([^<]+)</dc:title>", opf)
+            if t:
+                result["title"] = t.group(1).strip()
+            c = re.search(r"<dc:creator[^>]*>([^<]+)</dc:creator>", opf)
+            if c:
+                result["author"] = c.group(1).strip()
+    except Exception:
+        pass
+    return result
 
 
 # ─────────────────────────────────────────────────────────────
 # EPUB
 # ─────────────────────────────────────────────────────────────
 
-def extract_epub(path: Path) -> tuple[str, str]:
-    """Return (text, title) from an EPUB file."""
+def extract_epub(path: Path) -> tuple[str, str, str]:
+    """Return (text, title, author) from an EPUB file."""
     import ebooklib
     from ebooklib import epub
     from html.parser import HTMLParser
@@ -39,8 +68,10 @@ def extract_epub(path: Path) -> tuple[str, str]:
             if not self._skip:
                 self.chunks.append(data)
 
-    book = epub.read_epub(str(path), options={"ignore_ncx": True})
-    title = book.title or path.stem
+    meta = _read_opf_metadata(path)
+    book  = epub.read_epub(str(path), options={"ignore_ncx": True})
+    title  = meta["title"]  or book.title or path.stem
+    author = meta["author"] or ""
 
     chunks: list[str] = []
     total = 0
@@ -53,25 +84,20 @@ def extract_epub(path: Path) -> tuple[str, str]:
         if total > 600_000:
             break
 
-    return " ".join(chunks), title
+    return " ".join(chunks), title, author
 
 
 # ─────────────────────────────────────────────────────────────
 # PDF
 # ─────────────────────────────────────────────────────────────
 
-def extract_pdf(path: Path) -> tuple[str, str]:
-    """Return (text, title) from a PDF file using PyMuPDF.
-
-    Strategy:
-      1. Try standard text extraction (fitz page.get_text).
-      2. If very little text is found (scanned / image-based PDF),
-         raise a clear error so the user knows why it failed.
-    """
+def extract_pdf(path: Path) -> tuple[str, str, str]:
+    """Return (text, title, author) from a PDF file using PyMuPDF."""
     import fitz  # PyMuPDF
 
     doc = fitz.open(str(path))
-    title = (doc.metadata.get("title") or "").strip() or path.stem
+    title  = (doc.metadata.get("title")  or "").strip() or path.stem
+    author = (doc.metadata.get("author") or "").strip()
 
     chunks: list[str] = []
     total = 0
@@ -86,7 +112,6 @@ def extract_pdf(path: Path) -> tuple[str, str]:
 
     text = " ".join(chunks)
 
-    # Heuristic: fewer than 100 chars per page on average → likely scanned
     avg_chars = total / max(1, min(max_pages, doc.page_count))
     if avg_chars < 100 and total < 500:
         raise ValueError(
@@ -95,15 +120,15 @@ def extract_pdf(path: Path) -> tuple[str, str]:
             "A text-based PDF is required."
         )
 
-    return text, title
+    return text, title, author
 
 
 # ─────────────────────────────────────────────────────────────
 # Dispatcher
 # ─────────────────────────────────────────────────────────────
 
-def extract_text(path: Path) -> tuple[str, str]:
-    """Dispatch to the correct extractor based on file extension."""
+def extract_text(path: Path) -> tuple[str, str, str]:
+    """Dispatch to the correct extractor. Returns (text, title, author)."""
     suffix = path.suffix.lower()
     if suffix == ".epub":
         return extract_epub(path)

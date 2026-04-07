@@ -53,6 +53,7 @@ class ReadabilityScores:
 @dataclass
 class AnalysisResult:
     title: str = ""
+    author: str = ""
     stats: TextStats = field(default_factory=TextStats)
     scores: ReadabilityScores = field(default_factory=ReadabilityScores)
     language: lang_module.LanguageResult = field(default_factory=lang_module.LanguageResult)
@@ -182,7 +183,7 @@ def compute_scores(stats: TextStats, lang: str) -> ReadabilityScores:
 
 def analyse(path: Path) -> AnalysisResult:
     """Extract text, detect language, compute stats and readability scores."""
-    text, title = extraction.extract_text(path)
+    text, title, author = extraction.extract_text(path)
     text = re.sub(r"\s+", " ", text).strip()
 
     if len(text) < 300:
@@ -192,14 +193,9 @@ def analyse(path: Path) -> AnalysisResult:
         )
 
     detected = lang_module.detect(text)
-    # Use detected language for scoring if it's supported, regardless of confidence.
-    # Only fall back when language is completely unknown.
-    if detected.lang in ("es", "en"):
-        lang = detected.lang
-    else:
-        lang = "es"  # sensible default — most users of this app read Spanish
+    lang = detected.lang if detected.lang in ("es", "en") else "es"
 
     stats = compute_stats(text, lang)
     scores = compute_scores(stats, lang)
 
-    return AnalysisResult(title=title, stats=stats, scores=scores, language=detected)
+    return AnalysisResult(title=title, author=author, stats=stats, scores=scores, language=detected)

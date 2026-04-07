@@ -599,7 +599,7 @@ function buildFormulaHtml(sc) {
 
 // ── Render analysis ──────────────────────────
 function renderAnalysis(data) {
-  const { title, stats:s, scores:sc, language:lang } = data;
+  const { title, author, stats:s, scores:sc, language:lang } = data;
   window._lastStats = s;
 
   const needsOverride = lang.lang==='unknown' || !lang.is_supported || lang.confidence==='low';
@@ -609,14 +609,19 @@ function renderAnalysis(data) {
   else if (lang.confidence==='low'){ alertCls='alert-warn'; alertMsg=`Detected as ${esc(lang.lang_name)} with low confidence.`; }
   else                            { alertCls='alert-info';  alertMsg=`Detected as ${esc(lang.lang_name)} (${esc(lang.confidence)} confidence).`; }
 
-  const overrideHtml = needsOverride ? `<div class="alert-override">
+  // Always show override — detection can be wrong for bilingual books
+  const overrideHtml = `<div class="alert-override">
     <span>Compute scores as:</span>
-    <select id="langOverrideSelect"><option value="">— select —</option><option value="es">Spanish</option><option value="en">English</option></select>
+    <select id="langOverrideSelect">
+      <option value="">— select —</option>
+      <option value="es"${lang.lang==='es'?' selected':''}>Spanish</option>
+      <option value="en"${lang.lang==='en'?' selected':''}>English</option>
+    </select>
     <button id="langOverrideBtn">Apply</button>
-    </div>` : '';
+    </div>`;
 
   window._lastAnalysis = {
-    id:Date.now(), title, author:'', words:s.total_words,
+    id:Date.now(), title, author: author||'', words:s.total_words,
     lang:lang.lang, lang_name:lang.lang_name,
     scores:buildScoreRecord(sc), tags:[], status:'planned',
     dateAdded:new Date().toISOString().slice(0,10), dateStarted:'', dateFinished:'',
@@ -627,6 +632,7 @@ function renderAnalysis(data) {
     <div class="result-header">
       <div>
         <div class="result-title">${esc(title)}</div>
+        ${author ? `<div style="font-size:13px;color:var(--text-muted);margin-top:2px">${esc(author)}</div>` : ''}
         <div class="result-meta">${s.total_words.toLocaleString()} words · ${s.total_sentences.toLocaleString()} sentences · ${s.total_syllables.toLocaleString()} syllables</div>
       </div>
       <div class="result-actions">

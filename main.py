@@ -80,6 +80,7 @@ async def api_analyse(request: Request) -> JSONResponse:
 
         return JSONResponse({
             "title": result.title,
+            "author": result.author,
             "stats": asdict(result.stats),
             "scores": asdict(result.scores),
             "language": asdict(result.language),
