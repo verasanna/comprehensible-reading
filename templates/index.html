@@ -415,6 +415,7 @@
         <label class="btn btn-default btn-sm" style="cursor:pointer">↑ Import<input type="file" accept=".json,.bookmory" style="display:none" onchange="importFile(this)"></label>
       </div>
     </div>
+    <div id="librarySummary"></div>
     <div id="libraryList"></div>
   </div>
 
@@ -865,6 +866,21 @@ const STATUS_LABELS={reading:'Currently Reading',paused:'Paused',planned:'Planne
 function renderLibrary(books) {
   const listEl=document.getElementById('libraryList');
   const visible=filterBooks(books);
+
+  // Summary bar — always shown, based on full books list
+  const totalW=books.reduce((a,b)=>a+(b.words||0),0);
+  const summaryEl=document.getElementById('librarySummary');
+  if(summaryEl){
+    summaryEl.innerHTML=`
+      <div class="kv-grid" style="margin-bottom:16px">
+        <div class="kv-card"><div class="kv-label">Total</div><div class="kv-val">${books.length}</div></div>
+        <div class="kv-card"><div class="kv-label">Finished</div><div class="kv-val">${books.filter(b=>b.status==='finished').length}</div></div>
+        <div class="kv-card"><div class="kv-label">Reading</div><div class="kv-val">${books.filter(b=>b.status==='reading').length}</div></div>
+        <div class="kv-card"><div class="kv-label">Planned</div><div class="kv-val">${books.filter(b=>b.status==='planned').length}</div></div>
+        <div class="kv-card"><div class="kv-label">Paused</div><div class="kv-val">${books.filter(b=>b.status==='paused').length}</div></div>
+        <div class="kv-card"><div class="kv-label">Total words</div><div class="kv-val">${totalW.toLocaleString()}</div></div>
+      </div>`;
+  }
   if (!books.length) { listEl.innerHTML=`<div class="empty-state"><span class="empty-icon">📚</span><div class="empty-title">Your library is empty</div><div class="empty-sub">Analyse a book and click <strong>Add to library</strong>.</div></div>`; return; }
   if (!visible.length) { listEl.innerHTML=`<div class="empty-state"><span class="empty-icon">🔍</span><div class="empty-title">No results</div><div class="empty-sub">No books match your search.</div></div>`; return; }
   let html='';
@@ -1042,73 +1058,56 @@ function renderStatistics(books,tags) {
   if (!books.length){el.innerHTML=`<div class="empty-state"><span class="empty-icon">📊</span><div class="empty-title">No books yet</div></div>`;return;}
 
   const fin=books.filter(b=>b.status==='finished');
-  const totalW=books.reduce((a,b)=>a+(b.words||0),0);
   const finW=fin.reduce((a,b)=>a+(b.words||0),0);
 
-  const overviewHtml=`<div class="stats-section"><div class="stats-section-title">Overview</div>
+  // Overall
+  let html=`<div class="stats-section"><div class="stats-section-title">Overall</div>
     <div class="kv-grid">
-      <div class="kv-card"><div class="kv-label">Total books</div><div class="kv-val">${books.length}</div></div>
       <div class="kv-card"><div class="kv-label">Finished</div><div class="kv-val">${fin.length}</div></div>
-      <div class="kv-card"><div class="kv-label">Reading</div><div class="kv-val">${books.filter(b=>b.status==='reading').length}</div></div>
-      <div class="kv-card"><div class="kv-label">Planned</div><div class="kv-val">${books.filter(b=>b.status==='planned').length}</div></div>
-      <div class="kv-card"><div class="kv-label">Paused</div><div class="kv-val">${books.filter(b=>b.status==='paused').length}</div></div>
-      <div class="kv-card"><div class="kv-label">Total words</div><div class="kv-val">${totalW.toLocaleString()}</div></div>
       <div class="kv-card"><div class="kv-label">Words read</div><div class="kv-val">${finW.toLocaleString()}</div></div>
     </div></div>`;
 
+  // By language — only languages that have at least one finished book
   const byLang={};
-  for (const b of books){const k=b.lang||'unknown';if(!byLang[k])byLang[k]={name:b.lang_name||k,books:[],finW:0,totalW:0};byLang[k].books.push(b);byLang[k].totalW+=(b.words||0);if(b.status==='finished')byLang[k].finW+=(b.words||0);}
+  for (const b of fin){
+    const k=b.lang||'unknown';
+    if(!byLang[k])byLang[k]={name:b.lang_name||k,count:0,words:0};
+    byLang[k].count++;
+    byLang[k].words+=(b.words||0);
+  }
   const langOrder=['es','en'];
   const langKeys=[...langOrder.filter(k=>byLang[k]),...Object.keys(byLang).filter(k=>!langOrder.includes(k))];
 
-  let langHtml='';
-  for (const key of langKeys){
-    const lg=byLang[key];
-    const sorted=[...lg.books].sort((a,b)=>{const o={reading:0,paused:1,planned:2,finished:3};return(o[a.status]??9)-(o[b.status]??9);});
-    const finCount=lg.books.filter(b=>b.status==='finished').length;
-    langHtml+=`<div class="stats-section"><div class="stats-section-title">${esc(lg.name)} — ${lg.books.length} book${lg.books.length!==1?'s':''}</div>
-      <div class="kv-grid" style="margin-bottom:12px">
-        <div class="kv-card"><div class="kv-label">Finished</div><div class="kv-val">${finCount}</div></div>
-        <div class="kv-card"><div class="kv-label">Total words</div><div class="kv-val">${lg.totalW.toLocaleString()}</div></div>
-        <div class="kv-card"><div class="kv-label">Words read</div><div class="kv-val">${lg.finW.toLocaleString()}</div></div>
-      </div>
-      <table class="data-table"><thead><tr><th>Title</th><th>Author</th><th>Status</th><th class="num">Words</th><th>Difficulty</th><th>Finished</th></tr></thead><tbody>
-        ${sorted.map(b=>{
-          const rb=readabilitySummary(b.scores,b.lang,b.difficulty);
-          const rh=rb?`<span class="rb ${rb.cls}">${rb.label}</span>`:'—';
-          return`<tr><td>${esc(b.title)}</td><td>${esc(b.author||'—')}</td><td>${b.status||'—'}</td><td class="num">${b.words?b.words.toLocaleString():'—'}</td><td>${rh}</td><td>${b.dateFinished||'—'}</td></tr>`;
-        }).join('')}
-      </tbody></table></div>`;
-  }
-
-  const statTags=tags.filter(t=>t.showInStats);
-  let tagHtml='';
-  if(statTags.length){
-    tagHtml=`<div class="stats-section"><div class="stats-section-title">Statistics by Tag</div>`;
-    for(const tag of statTags){
-      const tagged=books.filter(b=>(b.tags||[]).includes(tag.name));
-      const tagFin=tagged.filter(b=>b.status==='finished');
-      const tagW=tagged.reduce((a,b)=>a+(b.words||0),0);
-      const tagFW=tagFin.reduce((a,b)=>a+(b.words||0),0);
-      tagHtml+=`<div class="tag-stat-box">
-        <div class="tag-stat-box-header"><span class="tag-chip" style="background:${tag.color}22;color:${tag.color};border-color:${tag.color}55">${esc(tag.name)}</span>${tagged.length} book${tagged.length!==1?'s':''}</div>
-        <div class="kv-grid" style="margin-bottom:12px">
-          <div class="kv-card"><div class="kv-label">Finished</div><div class="kv-val">${tagFin.length}</div></div>
-          <div class="kv-card"><div class="kv-label">Total words</div><div class="kv-val">${tagW.toLocaleString()}</div></div>
-          <div class="kv-card"><div class="kv-label">Words read</div><div class="kv-val">${tagFW.toLocaleString()}</div></div>
-        </div>
-        ${tagged.length?`<table class="data-table"><thead><tr><th>Title</th><th>Author</th><th>Language</th><th>Status</th><th class="num">Words</th><th>Difficulty</th></tr></thead><tbody>
-          ${tagged.map(b=>{
-            const rb=readabilitySummary(b.scores,b.lang,b.difficulty);
-            const rh=rb?`<span class="rb ${rb.cls}">${rb.label}</span>`:'—';
-            return`<tr><td>${esc(b.title)}</td><td>${esc(b.author||'—')}</td><td>${esc(b.lang_name||'—')}</td><td>${b.status||'—'}</td><td class="num">${b.words?b.words.toLocaleString():'—'}</td><td>${rh}</td></tr>`;
-          }).join('')}
-          </tbody></table>`:'<div style="font-size:13px;color:var(--text-muted)">No books with this tag.</div>'}
+  if(langKeys.length>1){
+    html+=`<div class="stats-section"><div class="stats-section-title">By language</div><div class="kv-grid">`;
+    for(const k of langKeys){
+      const lg=byLang[k];
+      html+=`<div class="kv-card">
+        <div class="kv-label">${esc(lg.name)}</div>
+        <div class="kv-val">${lg.count}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${lg.words.toLocaleString()} words</div>
       </div>`;
     }
-    tagHtml+='</div>';
+    html+=`</div></div>`;
   }
-  el.innerHTML=overviewHtml+langHtml+tagHtml;
+
+  // By tag — only tags with showInStats that have at least one finished book
+  const statTags=tags.filter(t=>t.showInStats);
+  if(statTags.length){
+    html+=`<div class="stats-section"><div class="stats-section-title">By tag</div><div class="kv-grid">`;
+    for(const tag of statTags){
+      const tagFin=fin.filter(b=>(b.tags||[]).includes(tag.name));
+      const tagW=tagFin.reduce((a,b)=>a+(b.words||0),0);
+      html+=`<div class="kv-card">
+        <div class="kv-label"><span class="tag-chip" style="background:${tag.color}22;color:${tag.color};border-color:${tag.color}55;padding:1px 6px">${esc(tag.name)}</span></div>
+        <div class="kv-val">${tagFin.length}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${tagW.toLocaleString()} words</div>
+      </div>`;
+    }
+    html+=`</div></div>`;
+  }
+
+  el.innerHTML=html;
 }
 
 // ── Import / Export ───────────────────────────

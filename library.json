@@ -9,7 +9,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Spain"
+    ],
     "status": "paused",
     "dateAdded": "2026-02-02",
     "dateStarted": "2026-01-27",
@@ -26,7 +28,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Spain"
+    ],
     "status": "finished",
     "dateAdded": "2026-02-02",
     "dateStarted": "2026-01-31",
@@ -43,7 +47,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Spain"
+    ],
     "status": "finished",
     "dateAdded": "2026-02-02",
     "dateStarted": "2025-12-20",
@@ -60,7 +66,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Spain"
+    ],
     "status": "finished",
     "dateAdded": "2026-02-02",
     "dateStarted": "2025-12-20",
@@ -77,7 +85,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Spain"
+    ],
     "status": "finished",
     "dateAdded": "2026-02-02",
     "dateStarted": "2025-11-19",
@@ -94,7 +104,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Spain"
+    ],
     "status": "finished",
     "dateAdded": "2026-02-02",
     "dateStarted": "2025-11-07",
@@ -105,13 +117,15 @@
     "id": 1770038390025519,
     "title": "Momo",
     "author": "Michael Ende",
-    "lang": "de",
-    "lang_name": "German",
+    "lang": "es",
+    "lang_name": "Spanish",
     "pages": 304,
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Germany"
+    ],
     "status": "finished",
     "dateAdded": "2026-02-02",
     "dateStarted": "2025-10-14",
@@ -122,13 +136,15 @@
     "id": 1770038515918497,
     "title": "Cuentos De La Selva",
     "author": "Horacio Quiroga",
-    "lang": "unknown",
-    "lang_name": "Unknown",
+    "lang": "es",
+    "lang_name": "Spanish",
     "pages": 112,
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Uruguay"
+    ],
     "status": "finished",
     "dateAdded": "2026-02-02",
     "dateStarted": "2025-09-02",
@@ -145,7 +161,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Spain"
+    ],
     "status": "finished",
     "dateAdded": "2026-02-02",
     "dateStarted": "2025-08-24",
@@ -162,24 +180,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
-    "status": "paused",
-    "dateAdded": "2026-02-06",
-    "dateStarted": "2026-02-06",
-    "dateFinished": "",
-    "source": "bookmory"
-  },
-  {
-    "id": 1770399827660460,
-    "title": "La sombra del ciprés es alargada",
-    "author": "Miguel Delibes",
-    "lang": "es",
-    "lang_name": "Spanish",
-    "pages": 312,
-    "words": 0,
-    "difficulty": null,
-    "scores": {},
-    "tags": [],
+    "tags": [
+      "Spain"
+    ],
     "status": "paused",
     "dateAdded": "2026-02-06",
     "dateStarted": "2026-02-06",
@@ -196,7 +199,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Argentina"
+    ],
     "status": "paused",
     "dateAdded": "2026-02-10",
     "dateStarted": "2026-02-10",
@@ -213,7 +218,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Spain"
+    ],
     "status": "finished",
     "dateAdded": "2026-02-17",
     "dateStarted": "2026-02-17",
@@ -230,7 +237,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Spain"
+    ],
     "status": "paused",
     "dateAdded": "2026-02-24",
     "dateStarted": "2026-02-24",
@@ -241,13 +250,15 @@
     "id": 1772219395446997,
     "title": "García Márquez: Historia De Un Deicidio",
     "author": "Mario Vargas Llosa",
-    "lang": "unknown",
-    "lang_name": "Unknown",
+    "lang": "es",
+    "lang_name": "Spanish",
     "pages": 672,
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Colombia"
+    ],
     "status": "paused",
     "dateAdded": "2026-02-27",
     "dateStarted": "2026-02-27",
@@ -264,7 +275,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "France"
+    ],
     "status": "finished",
     "dateAdded": "2026-03-15",
     "dateStarted": "2026-03-15",
@@ -281,27 +294,12 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "France"
+    ],
     "status": "planned",
     "dateAdded": "2026-03-16",
     "dateStarted": "",
-    "dateFinished": "",
-    "source": "bookmory"
-  },
-  {
-    "id": 1773858487491565,
-    "title": "Los Cojudos",
-    "author": "Sofocleto",
-    "lang": "es",
-    "lang_name": "Spanish",
-    "pages": 127,
-    "words": 0,
-    "difficulty": null,
-    "scores": {},
-    "tags": [],
-    "status": "paused",
-    "dateAdded": "2026-03-18",
-    "dateStarted": "2026-03-18",
     "dateFinished": "",
     "source": "bookmory"
   },
@@ -315,7 +313,9 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Spain"
+    ],
     "status": "paused",
     "dateAdded": "2026-03-20",
     "dateStarted": "2026-03-20",
@@ -332,27 +332,12 @@
     "words": 0,
     "difficulty": null,
     "scores": {},
-    "tags": [],
+    "tags": [
+      "Chile"
+    ],
     "status": "paused",
     "dateAdded": "2026-03-22",
     "dateStarted": "2026-03-22",
-    "dateFinished": "",
-    "source": "bookmory"
-  },
-  {
-    "id": 1774287716735349,
-    "title": "PANTALEON Y LAS VISITADORAS CV 07",
-    "author": "Mario Vargas Llosa",
-    "lang": "unknown",
-    "lang_name": "Unknown",
-    "pages": 352,
-    "words": 0,
-    "difficulty": null,
-    "scores": {},
-    "tags": [],
-    "status": "paused",
-    "dateAdded": "2026-03-23",
-    "dateStarted": "2026-03-23",
     "dateFinished": "",
     "source": "bookmory"
   },
@@ -370,29 +355,14 @@
       "szigriszt": 57.1,
       "crawford": 1.8
     },
-    "tags": [],
+    "tags": [
+      "Peru"
+    ],
     "status": "reading",
     "dateAdded": "2026-03-28",
     "dateStarted": "2026-03-28",
     "dateFinished": "",
     "source": "bookmory"
-  },
-  {
-    "id": 1775491339253,
-    "title": "Spanish Tales for Beginners",
-    "words": 76377,
-    "lang": "es",
-    "lang_name": "Spanish",
-    "scores": {
-      "flesch_es": 86.9,
-      "szigriszt": 82.6,
-      "crawford": 3.6
-    },
-    "tags": [],
-    "status": "planned",
-    "dateAdded": "2026-04-06",
-    "dateStarted": "",
-    "dateFinished": ""
   },
   {
     "id": 1775494060614,
@@ -405,27 +375,11 @@
       "flesch_kincaid_grade": 6.3,
       "gunning_fog": 9.8
     },
-    "tags": [],
+    "tags": [
+      "UK"
+    ],
     "status": "planned",
     "dateAdded": "2026-04-06",
-    "dateStarted": "",
-    "dateFinished": ""
-  },
-  {
-    "id": 1775543787988,
-    "title": "Modern Spanish Lyrics",
-    "author": "",
-    "words": 69507,
-    "lang": "es",
-    "lang_name": "Spanish",
-    "scores": {
-      "flesch_es": 82.3,
-      "szigriszt": 78.6,
-      "crawford": 1
-    },
-    "tags": [],
-    "status": "planned",
-    "dateAdded": "2026-04-07",
     "dateStarted": "",
     "dateFinished": ""
   },
@@ -441,7 +395,9 @@
       "flesch_kincaid_grade": 9.4,
       "gunning_fog": 12.8
     },
-    "tags": [],
+    "tags": [
+      "UK"
+    ],
     "status": "planned",
     "dateAdded": "2026-04-07",
     "dateStarted": "",
