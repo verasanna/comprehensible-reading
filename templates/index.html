@@ -349,6 +349,58 @@
 
   .stats-section { margin-bottom: 32px; }
   .stats-section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+  .period-btn {
+    font-family: var(--font); font-size: 12px; font-weight: 500;
+    padding: 4px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); cursor: pointer; background: var(--surface); color: var(--text-muted);
+    transition: all 0.1s;
+  }
+  .period-btn:hover { border-color: #b1bac4; color: var(--text); }
+  .period-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  /* Stacked bar */
+  .stacked-bar-wrap { margin: 6px 0 16px; }
+  .stacked-bar {
+    display: flex; height: 28px; border-radius: var(--radius-sm);
+    overflow: hidden; border: 1px solid var(--border);
+  }
+  .stacked-bar-seg {
+    height: 100%; transition: width 0.4s ease;
+    position: relative; min-width: 0;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .stacked-bar-seg-label {
+    font-size: 10px; font-weight: 600; color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding: 0 5px; text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+    pointer-events: none;
+  }
+  .stacked-bar-remainder {
+    flex: 1; background: var(--surface); min-width: 0;
+  }
+  .stacked-bar-legend {
+    display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px;
+  }
+  .stacked-bar-legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--text-muted);
+  }
+  .stacked-bar-legend-dot {
+    width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+  }
+
+  .lang-stat-block {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 12px; background: var(--bg);
+  }
+  .lang-stat-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 12px;
+  }
+  .lang-stat-name { font-size: 15px; font-weight: 600; }
+  .lang-stat-total { font-size: 13px; color: var(--text-muted); font-family: var(--mono); }
   .tag-stat-box { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin-top: 8px; }
   .tag-stat-box-header { font-size: 13px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 
@@ -421,6 +473,14 @@
 
   <!-- ── STATISTICS ── -->
   <div id="tab-statistics" class="tab-content">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+      <div class="section-head" style="margin:0;border:none;padding:0;flex:1">Statistics</div>
+      <div style="display:flex;gap:4px" id="periodBtns">
+        <button class="period-btn active" data-period="all" onclick="setPeriod('all')">All time</button>
+        <button class="period-btn" data-period="year" onclick="setPeriod('year')">This year</button>
+        <button class="period-btn" data-period="prev" onclick="setPeriod('prev')">Last year</button>
+      </div>
+    </div>
     <div id="statisticsOutput"></div>
   </div>
 
@@ -1051,63 +1111,193 @@ async function addToLibrary() {
 }
 
 // ── Statistics ───────────────────────────────
-async function loadAndRenderStatistics() { await loadTags(); _books=await apiGet('/api/library'); renderStatistics(_books,_tags); }
+let _statPeriod = 'all';
 
-function renderStatistics(books,tags) {
-  const el=document.getElementById('statisticsOutput');
-  if (!books.length){el.innerHTML=`<div class="empty-state"><span class="empty-icon">📊</span><div class="empty-title">No books yet</div></div>`;return;}
+function setPeriod(p) {
+  _statPeriod = p;
+  document.querySelectorAll('.period-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.period === p);
+  });
+  renderStatistics(_books, _tags);
+}
 
-  const fin=books.filter(b=>b.status==='finished');
-  const finW=fin.reduce((a,b)=>a+(b.words||0),0);
+async function loadAndRenderStatistics() {
+  await loadTags();
+  _books = await apiGet('/api/library');
+  renderStatistics(_books, _tags);
+}
 
-  // Overall
-  let html=`<div class="stats-section"><div class="stats-section-title">Overall</div>
-    <div class="kv-grid">
-      <div class="kv-card"><div class="kv-label">Finished</div><div class="kv-val">${fin.length}</div></div>
-      <div class="kv-card"><div class="kv-label">Words read</div><div class="kv-val">${finW.toLocaleString()}</div></div>
-    </div></div>`;
+function filterByPeriod(books, period) {
+  if (period === 'all') return books;
+  const now = new Date();
+  const year = period === 'year' ? now.getFullYear() : now.getFullYear() - 1;
+  return books.filter(b => {
+    const d = b.dateFinished || b.dateAdded || '';
+    return d.startsWith(String(year));
+  });
+}
 
-  // By language — only languages that have at least one finished book
-  const byLang={};
-  for (const b of fin){
-    const k=b.lang||'unknown';
-    if(!byLang[k])byLang[k]={name:b.lang_name||k,count:0,words:0};
+// Palette for difficulty levels (maps DIFFICULTY_LEVELS values 1–5)
+const DIFF_COLORS = {
+  1: '#2da44e', // very easy — green
+  2: '#57ab5a', // easy — lighter green
+  3: '#d4a72c', // medium — amber
+  4: '#e5534b', // difficult — red-orange
+  5: '#cf222e', // very difficult — red
+};
+
+// Generate a palette for tags (cycle through a set of distinct colors)
+const TAG_PALETTE = [
+  '#0969da','#8250df','#bf8700','#1a7f37','#cf222e',
+  '#0550ae','#6e40c9','#9a6700','#116329','#a40e26',
+];
+
+function stackedBar(segments, totalWords) {
+  // Horizontal stacked bar — used for difficulty levels
+  if (!totalWords) return '<div style="font-size:12px;color:var(--text-muted)">No word counts recorded.</div>';
+  const segs = segments.filter(s => s.words > 0);
+  if (!segs.length) return '<div style="font-size:12px;color:var(--text-muted)">No data.</div>';
+
+  const barSegs = segs.map(s => {
+    const pct = (s.words / totalWords * 100).toFixed(2);
+    const show = s.words / totalWords > 0.08;
+    return `<div class="stacked-bar-seg" style="width:${pct}%;background:${s.color}" title="${esc(s.label)}: ${s.words.toLocaleString()} words">
+      ${show ? `<span class="stacked-bar-seg-label">${esc(s.label)}</span>` : ''}
+    </div>`;
+  }).join('');
+
+  const legend = segs.map(s =>
+    `<div class="stacked-bar-legend-item">
+      <div class="stacked-bar-legend-dot" style="background:${s.color}"></div>
+      <span>${esc(s.label)} — ${s.words.toLocaleString()}</span>
+    </div>`
+  ).join('');
+
+  return `<div class="stacked-bar-wrap">
+    <div class="stacked-bar">${barSegs}<div class="stacked-bar-remainder"></div></div>
+    <div class="stacked-bar-legend">${legend}</div>
+  </div>`;
+}
+
+function tagBars(tagSegs, totalWords) {
+  // tagSegs: [{label, words, color}], totalWords = language total
+  if (!totalWords || !tagSegs.length) return '';
+  const segs = tagSegs.filter(s => s.words > 0);
+  if (!segs.length) return '<div style="font-size:12px;color:var(--text-muted)">No tagged books with word counts.</div>';
+
+  // Sort: by color (hex string) first, then by words descending within each color group
+  const sorted = [...segs].sort((a, b) => {
+    const colorCmp = a.color.localeCompare(b.color);
+    if (colorCmp !== 0) return colorCmp;
+    return b.words - a.words;
+  });
+
+  const rows = sorted.map(s => {
+    const pct = Math.max(0.5, s.words / totalWords * 100);
+    const wordsStr = s.words.toLocaleString();
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+      <div style="width:130px;font-size:11px;color:var(--text-muted);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0"
+           title="${esc(s.label)}">${esc(s.label)}</div>
+      <div style="flex:1;height:14px;background:var(--surface);border-radius:2px;overflow:hidden;position:relative">
+        <div style="height:100%;width:${pct.toFixed(2)}%;background:${s.color};border-radius:2px;transition:width 0.4s ease"
+             title="${esc(s.label)}: ${wordsStr} words"></div>
+      </div>
+      <div style="width:70px;font-size:11px;color:var(--text-muted);font-family:var(--mono)">${wordsStr}</div>
+    </div>`;
+  }).join('');
+
+  return `<div style="margin:4px 0 12px">${rows}</div>`;
+}
+
+function renderStatistics(books, tags) {
+  const el = document.getElementById('statisticsOutput');
+  if (!books.length) {
+    el.innerHTML = `<div class="empty-state"><span class="empty-icon">📊</span><div class="empty-title">No books yet</div></div>`;
+    return;
+  }
+
+  const allFin = books.filter(b => b.status === 'finished');
+  const fin = filterByPeriod(allFin, _statPeriod);
+
+  if (!fin.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:2rem"><span class="empty-icon" style="font-size:2rem">📊</span><div class="empty-title">No finished books for this period</div></div>`;
+    return;
+  }
+
+  // ── Summary: per-language totals ──────────────
+  const byLang = {};
+  for (const b of fin) {
+    const k = b.lang || 'unknown';
+    if (!byLang[k]) byLang[k] = { name: b.lang_name || k, count: 0, words: 0, books: [] };
     byLang[k].count++;
-    byLang[k].words+=(b.words||0);
+    byLang[k].words += (b.words || 0);
+    byLang[k].books.push(b);
   }
-  const langOrder=['es','en'];
-  const langKeys=[...langOrder.filter(k=>byLang[k]),...Object.keys(byLang).filter(k=>!langOrder.includes(k))];
+  const langOrder = ['es', 'en'];
+  const langKeys = [...langOrder.filter(k => byLang[k]), ...Object.keys(byLang).filter(k => !langOrder.includes(k))];
 
-  if(langKeys.length>1){
-    html+=`<div class="stats-section"><div class="stats-section-title">By language</div><div class="kv-grid">`;
-    for(const k of langKeys){
-      const lg=byLang[k];
-      html+=`<div class="kv-card">
-        <div class="kv-label">${esc(lg.name)}</div>
-        <div class="kv-val">${lg.count}</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${lg.words.toLocaleString()} words</div>
-      </div>`;
+  const totalFinished = fin.length;
+  const totalWords    = fin.reduce((a, b) => a + (b.words || 0), 0);
+
+  // Summary KV cards
+  let html = `<div class="stats-section">
+    <div class="kv-grid">
+      <div class="kv-card"><div class="kv-label">Finished</div><div class="kv-val">${totalFinished}</div></div>
+      <div class="kv-card"><div class="kv-label">Words read</div><div class="kv-val">${totalWords.toLocaleString()}</div></div>
+      ${langKeys.map(k => `
+      <div class="kv-card">
+        <div class="kv-label">${esc(byLang[k].name)}</div>
+        <div class="kv-val">${byLang[k].words.toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${byLang[k].count} book${byLang[k].count!==1?'s':''}</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+
+  // ── Per-language blocks ──────────────────────
+  const statTags = tags.filter(t => t.showInStats);
+  const tagColorMap = {};
+  statTags.forEach((t, i) => { tagColorMap[t.name] = t.color || TAG_PALETTE[i % TAG_PALETTE.length]; });
+
+  for (const k of langKeys) {
+    const lg = byLang[k];
+    const lgWords = lg.words;
+
+    // Difficulty bar
+    const diffSegs = DIFFICULTY_LEVELS.map(lvl => {
+      const w = lg.books.filter(b => {
+        const d = b.difficulty != null ? b.difficulty : scoresToDifficultyValue(b.scores, b.lang);
+        return d === lvl.value;
+      }).reduce((a, b) => a + (b.words || 0), 0);
+      return { label: lvl.label, words: w, color: DIFF_COLORS[lvl.value] };
+    });
+
+    // Tags — individual bars per tag
+    let tagSegs = [];
+    if (statTags.length) {
+      tagSegs = statTags.map(tag => {
+        const w = lg.books
+          .filter(b => (b.tags || []).includes(tag.name))
+          .reduce((a, b) => a + (b.words || 0), 0);
+        return { label: tag.name, words: w, color: tagColorMap[tag.name] };
+      }).filter(s => s.words > 0);
     }
-    html+=`</div></div>`;
+
+    html += `<div class="lang-stat-block">
+      <div class="lang-stat-header">
+        <div class="lang-stat-name">${esc(lg.name)}</div>
+        <div class="lang-stat-total">${lgWords.toLocaleString()} words · ${lg.count} book${lg.count!==1?'s':''}</div>
+      </div>
+
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">By difficulty</div>
+      ${stackedBar(diffSegs, lgWords)}
+
+      ${statTags.length ? `
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;margin-top:4px">By tag</div>
+      ${tagBars(tagSegs, lgWords)}` : ''}
+    </div>`;
   }
 
-  // By tag — only tags with showInStats that have at least one finished book
-  const statTags=tags.filter(t=>t.showInStats);
-  if(statTags.length){
-    html+=`<div class="stats-section"><div class="stats-section-title">By tag</div><div class="kv-grid">`;
-    for(const tag of statTags){
-      const tagFin=fin.filter(b=>(b.tags||[]).includes(tag.name));
-      const tagW=tagFin.reduce((a,b)=>a+(b.words||0),0);
-      html+=`<div class="kv-card">
-        <div class="kv-label"><span class="tag-chip" style="background:${tag.color}22;color:${tag.color};border-color:${tag.color}55;padding:1px 6px">${esc(tag.name)}</span></div>
-        <div class="kv-val">${tagFin.length}</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${tagW.toLocaleString()} words</div>
-      </div>`;
-    }
-    html+=`</div></div>`;
-  }
-
-  el.innerHTML=html;
+  el.innerHTML = html;
 }
 
 // ── Import / Export ───────────────────────────
