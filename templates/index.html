@@ -415,6 +415,20 @@
 
   .panel { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--bg); margin-bottom: 16px; }
 
+  /* Filter bar */
+  .filter-bar {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: 12px; align-items: center;
+  }
+  .filter-select {
+    font-family: var(--font); font-size: 13px; padding: 4px 8px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg); color: var(--text); outline: none;
+    transition: border-color 0.15s;
+  }
+  .filter-select:focus { border-color: var(--accent); }
+  .filter-select.active { border-color: var(--accent); background: var(--accent-bg); }
+
   @media (max-width: 600px) {
     .result-header { flex-direction: column; }
     .result-actions { width: 100%; }
@@ -460,12 +474,43 @@
   <div id="tab-library" class="tab-content">
     <div class="toolbar">
       <div class="toolbar-left">
-        <input class="search-input" id="librarySearch" type="text" placeholder="Search by title, tag, or language…" oninput="renderLibrary(_books)">
+        <input class="search-input" id="librarySearch" type="text" placeholder="Search title or author…" oninput="renderLibrary(_books)" style="width:200px">
       </div>
       <div class="toolbar-right">
         <button class="btn btn-default btn-sm" onclick="exportJSON()">↓ Export</button>
         <label class="btn btn-default btn-sm" style="cursor:pointer">↑ Import<input type="file" accept=".json,.bookmory" style="display:none" onchange="importFile(this)"></label>
       </div>
+    </div>
+    <div class="filter-bar" id="filterBar">
+      <select class="filter-select" id="fLang" onchange="renderLibrary(_books)">
+        <option value="">All languages</option>
+      </select>
+      <select class="filter-select" id="fStatus" onchange="renderLibrary(_books)">
+        <option value="">All statuses</option>
+        <option value="reading">Reading</option>
+        <option value="finished">Finished</option>
+        <option value="planned">Planned</option>
+        <option value="paused">Paused</option>
+      </select>
+      <select class="filter-select" id="fTag" onchange="renderLibrary(_books)">
+        <option value="">All tags</option>
+      </select>
+      <select class="filter-select" id="fScoreKey" onchange="renderLibrary(_books)" style="width:140px">
+        <option value="">Score…</option>
+        <option value="flesch_es">Flesch (ES)</option>
+        <option value="szigriszt">Szigriszt</option>
+        <option value="crawford">Crawford</option>
+        <option value="flesch_en">Flesch (EN)</option>
+        <option value="flesch_kincaid_grade">F–K Grade</option>
+        <option value="gunning_fog">Fog</option>
+      </select>
+      <select class="filter-select" id="fScoreOp" onchange="renderLibrary(_books)" style="width:50px">
+        <option value="gte">≥</option>
+        <option value="lte">≤</option>
+      </select>
+      <input type="number" id="fScoreVal" class="filter-select" placeholder="value" style="width:70px"
+        oninput="renderLibrary(_books)">
+      <button class="btn btn-default btn-sm" onclick="clearFilters()" style="white-space:nowrap">✕ Clear</button>
     </div>
     <div id="librarySummary"></div>
     <div id="libraryList"></div>
@@ -865,7 +910,6 @@ async function forceDeleteTag(name) {
   await loadAndRenderTags();
   if (document.getElementById('tab-library').classList.contains('active')) loadAndRenderLibrary();
 }
-
 async function createTag() {
   const nameEl=document.getElementById('newTagName'),colorEl=document.getElementById('newTagColor'),statEl=document.getElementById('newTagStat');
   const name=nameEl.value.trim(); if(!name) return;
@@ -906,12 +950,72 @@ async function removeTagFromBook(bookId,tagName) {
 }
 
 // ── Library ───────────────────────────────────
-async function loadAndRenderLibrary() { await loadTags(); _books=await apiGet('/api/library'); renderLibrary(_books); }
+async function loadAndRenderLibrary() {
+  await loadTags();
+  _books = await apiGet('/api/library');
+  populateFilterDropdowns(_books);
+  renderLibrary(_books);
+}
+
+function populateFilterDropdowns(books) {
+  // Languages
+  const langSel = document.getElementById('fLang');
+  if (langSel) {
+    const current = langSel.value;
+    const langs = [...new Map(books.filter(b => b.lang && b.lang_name).map(b => [b.lang, b.lang_name])).entries()];
+    langSel.innerHTML = '<option value="">All languages</option>' +
+      langs.map(([k, v]) => `<option value="${esc(k)}"${current===k?' selected':''}>${esc(v)}</option>`).join('');
+  }
+  // Tags
+  const tagSel = document.getElementById('fTag');
+  if (tagSel) {
+    const current = tagSel.value;
+    tagSel.innerHTML = '<option value="">All tags</option>' +
+      _tags.map(t => `<option value="${esc(t.name)}"${current===t.name?' selected':''}>${esc(t.name)}</option>`).join('');
+  }
+}
+
+function clearFilters() {
+  ['librarySearch','fLang','fStatus','fTag','fScoreKey','fScoreVal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const op = document.getElementById('fScoreOp');
+  if (op) op.value = 'gte';
+  renderLibrary(_books);
+}
 
 function filterBooks(books) {
-  const q=(document.getElementById('librarySearch')?.value||'').toLowerCase().trim();
-  if(!q) return books;
-  return books.filter(b=>(b.title||'').toLowerCase().includes(q)||(b.author||'').toLowerCase().includes(q)||(b.lang_name||'').toLowerCase().includes(q)||(b.tags||[]).some(t=>t.toLowerCase().includes(q)));
+  const q       = (document.getElementById('librarySearch')?.value || '').toLowerCase().trim();
+  const lang    = document.getElementById('fLang')?.value     || '';
+  const status  = document.getElementById('fStatus')?.value   || '';
+  const tag     = document.getElementById('fTag')?.value      || '';
+  const scoreKey= document.getElementById('fScoreKey')?.value || '';
+  const scoreOp = document.getElementById('fScoreOp')?.value  || 'gte';
+  const scoreVal= parseFloat(document.getElementById('fScoreVal')?.value);
+
+  // Highlight active filters
+  ['fLang','fStatus','fTag','fScoreKey'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', !!el.value);
+  });
+
+  return books.filter(b => {
+    if (q && !(
+      (b.title  ||'').toLowerCase().includes(q) ||
+      (b.author ||'').toLowerCase().includes(q)
+    )) return false;
+    if (lang   && b.lang   !== lang)   return false;
+    if (status && b.status !== status) return false;
+    if (tag    && !(b.tags||[]).includes(tag)) return false;
+    if (scoreKey && !isNaN(scoreVal)) {
+      const v = b.scores?.[scoreKey];
+      if (v == null) return false;
+      if (scoreOp === 'gte' && v < scoreVal) return false;
+      if (scoreOp === 'lte' && v > scoreVal) return false;
+    }
+    return true;
+  });
 }
 
 function statusBadge(s) {
@@ -955,20 +1059,42 @@ function renderLibrary(books) {
   listEl.innerHTML=html;
 }
 
+function primaryScoreHtml(scores, lang) {
+  if (!scores) return '';
+  // Pick the most meaningful score for the language
+  let key = null, label = null;
+  if (lang === 'es') {
+    if (scores.szigriszt != null)  { key = 'szigriszt';  label = 'Szigriszt'; }
+    else if (scores.flesch_es != null) { key = 'flesch_es'; label = 'Flesch'; }
+    else if (scores.crawford  != null) { key = 'crawford';  label = 'Crawford'; }
+  } else {
+    if (scores.flesch_en != null)           { key = 'flesch_en';            label = 'Flesch'; }
+    else if (scores.flesch_kincaid_grade != null) { key = 'flesch_kincaid_grade'; label = 'F–K'; }
+    else if (scores.gunning_fog != null)    { key = 'gunning_fog';           label = 'Fog'; }
+  }
+  // Fallback: any score present
+  if (!key) {
+    const allKeys = ['szigriszt','flesch_es','crawford','flesch_en','flesch_kincaid_grade','gunning_fog'];
+    for (const k of allKeys) { if (scores[k] != null) { key = k; label = k; break; } }
+  }
+  if (!key) return '';
+  return `<span style="font-size:11px;color:var(--text-muted);margin-left:6px;font-family:var(--mono)">${label} ${fmtN(scores[key])}</span>`;
+}
+
 function bookRowHtml(book) {
   const langTag = book.lang_name
     ? `<span class="lang-tag ${book.lang==='es'?'lang-es':book.lang==='en'?'lang-en':''}" style="${book.lang!=='es'&&book.lang!=='en'?'background:var(--surface);color:var(--text-muted);border-color:var(--border)':''}">${esc(book.lang_name)}</span>`
     : '';
   const rb = readabilityBadge(book.scores, book.lang, book.difficulty);
+  const score = primaryScoreHtml(book.scores, book.lang);
   const wordsStr = book.words ? `${book.words.toLocaleString()} words` : '';
-  const diffLevel = DIFFICULTY_LEVELS.find(l => l.value === book.difficulty);
 
   return `<div class="book-row" id="bookrow-${book.id}">
     <div class="book-main">
       <div class="book-left">
         <div class="book-title">${esc(book.title)}</div>
         <div class="book-meta">${book.author?esc(book.author)+' · ':''}Added ${book.dateAdded||'—'}${wordsStr?' · '+wordsStr:''}</div>
-        <div class="book-badges">${langTag}${rb}</div>
+        <div class="book-badges">${langTag}${rb}${score}</div>
         ${tagChipsHtml(book.id, book.tags)}
       </div>
       <div class="book-right">
