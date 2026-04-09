@@ -815,7 +815,7 @@ function renderTagsPanel() {
     <div class="tag-list-item" id="tagrow-${i}">
       <div class="tag-swatch" style="background:${esc(t.color)}"></div>
       <div class="tag-list-name">${esc(t.name)}</div>
-      <label class="tag-stat-check"><input type="checkbox" ${t.showInStats?'checked':''} onchange="toggleTagStat(${JSON.stringify(t.name)},this.checked)"> Show in stats</label>
+      <div style="font-size:11px;color:var(--text-muted)">${t.showInStats ? 'In stats' : ''}</div>
       <button class="btn btn-default btn-sm" onclick="startEditTag(${i})">Edit</button>
       <button class="btn btn-danger btn-sm" onclick="deleteTag(${i})">Remove</button>
     </div>`).join('');
@@ -1138,10 +1138,10 @@ function bookRowHtml(book) {
         </select>
       </div>
       <div class="form-group"><div class="form-label">Started</div>
-        <input type="date" value="${book.dateStarted||''}" onchange="updateBook(${book.id},'dateStarted',this.value)">
+        <input type="date" value="${book.dateStarted||''}" onchange="updateBookSilent(${book.id},'dateStarted',this.value)">
       </div>
       <div class="form-group"><div class="form-label">Finished</div>
-        <input type="date" value="${book.dateFinished||''}" onchange="updateBook(${book.id},'dateFinished',this.value)">
+        <input type="date" value="${book.dateFinished||''}" onchange="updateBookSilent(${book.id},'dateFinished',this.value)">
       </div>
     </div>
   </div>`;
@@ -1156,6 +1156,14 @@ function toggleBookEdit(id) {
   const row = document.getElementById('bookrow-' + id);
   const btn = row?.querySelector('button.btn-default.btn-sm');
   if (btn) btn.textContent = open ? 'Edit' : 'Done';
+}
+
+async function updateBookSilent(id, field, val) {
+  // Patch server and update cache without re-rendering — used for date inputs
+  // so typing manually doesn't reset the field mid-edit.
+  await apiPatch(`/api/library/${id}`, {[field]: val});
+  const idx = _books.findIndex(b => b.id === id);
+  if (idx !== -1) _books[idx] = { ..._books[idx], [field]: val };
 }
 
 async function updateBook(id, field, val) {
