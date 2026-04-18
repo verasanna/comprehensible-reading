@@ -810,33 +810,38 @@ async function loadAndRenderTags() { await loadTags(); renderTagsPanel(); }
 function renderTagsPanel() {
   const el = document.getElementById('tagsListEl');
   if (!_tags.length) { el.innerHTML='<div style="font-size:13px;color:var(--text-muted);padding:8px 0">No tags yet.</div>'; return; }
-  // Use numeric index as ID — avoids any CSS.escape / getElementById mismatch with special chars in names
-  el.innerHTML = _tags.map((t, i) => `
-    <div class="tag-list-item" id="tagrow-${i}">
+  const sorted = [..._tags].sort((a, b) => a.name.localeCompare(b.name));
+  // Use encoded name as row id key so Edit/Delete always resolve the right tag
+  el.innerHTML = sorted.map(t => {
+    const key = encodeURIComponent(t.name);
+    return `
+    <div class="tag-list-item" id="tagrow-${key}">
       <div class="tag-swatch" style="background:${esc(t.color)}"></div>
       <div class="tag-list-name">${esc(t.name)}</div>
       <div style="font-size:11px;color:var(--text-muted)">${t.showInStats ? 'In stats' : ''}</div>
-      <button class="btn btn-default btn-sm" onclick="startEditTag(${i})">Edit</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteTag(${i})">Remove</button>
-    </div>`).join('');
+      <button class="btn btn-default btn-sm" onclick="startEditTag(${JSON.stringify(t.name)})">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteTag(${JSON.stringify(t.name)})">Remove</button>
+    </div>`;
+  }).join('');
 }
 
-function startEditTag(idx) {
-  const tag = _tags[idx]; if (!tag) return;
-  const el = document.getElementById('tagrow-'+idx); if (!el) return;
-  el.outerHTML = `<div class="tag-edit-inline" id="tagrow-${idx}">
-    <input type="color" id="tag-color-${idx}" value="${esc(tag.color)}">
-    <input type="text"  id="tag-name-${idx}"  value="${esc(tag.name)}" style="flex:1"
+function startEditTag(name) {
+  const tag = _tags.find(t => t.name === name); if (!tag) return;
+  const key = encodeURIComponent(name);
+  const el = document.getElementById('tagrow-'+key); if (!el) return;
+  el.outerHTML = `<div class="tag-edit-inline" id="tagrow-${key}">
+    <input type="color" id="tag-color-${key}" value="${esc(tag.color)}">
+    <input type="text"  id="tag-name-${key}"  value="${esc(tag.name)}" style="flex:1"
       placeholder="Tag name">
     <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;color:var(--text-muted);white-space:nowrap">
-      <input type="checkbox" id="tag-stat-${idx}" ${tag.showInStats?'checked':''}> Show in stats
+      <input type="checkbox" id="tag-stat-${key}" ${tag.showInStats?'checked':''}> Show in stats
     </label>
     <span style="font-size:11px;color:var(--text-subtle)">Enter to save · Esc to cancel</span>
   </div>`;
 
-  const nameInp  = document.getElementById('tag-name-'+idx);
-  const colorInp = document.getElementById('tag-color-'+idx);
-  const statInp  = document.getElementById('tag-stat-'+idx);
+  const nameInp  = document.getElementById('tag-name-'+key);
+  const colorInp = document.getElementById('tag-color-'+key);
+  const statInp  = document.getElementById('tag-stat-'+key);
   const oldName  = tag.name;
 
   async function doSave() {
@@ -876,18 +881,18 @@ async function toggleTagStat(name, val) {
   await loadTags();
 }
 
-async function deleteTag(idx) {
-  const tag = _tags[idx]; if (!tag) return;
-  const name = tag.name;
+async function deleteTag(name) {
+  const tag = _tags.find(t => t.name === name); if (!tag) return;
+  const key = encodeURIComponent(name);
 
   // Check if used in any books
   const books = await apiGet('/api/library');
   const using = books.filter(b => (b.tags||[]).includes(name));
 
   if (using.length > 0) {
-    const el = document.getElementById('tagrow-'+idx); if (!el) return;
+    const el = document.getElementById('tagrow-'+key); if (!el) return;
     const titles = using.map(b => `<li style="margin:2px 0">${esc(b.title)}</li>`).join('');
-    el.outerHTML = `<div class="tag-usage-warning" id="tagrow-${idx}">
+    el.outerHTML = `<div class="tag-usage-warning" id="tagrow-${key}">
       <div class="tag-usage-header">
         <span><strong>${esc(name)}</strong> is used in ${using.length} book${using.length!==1?'s':''}:</span>
         <button class="btn-link" onclick="loadAndRenderTags()">Dismiss</button>
@@ -920,12 +925,13 @@ async function createTag() {
 }
 
 function tagChipsHtml(bookId, bookTags) {
-  const chips=(bookTags||[]).map(name=>{
+  const sortedAssigned = [...(bookTags||[])].sort((a, b) => a.localeCompare(b));
+  const chips = sortedAssigned.map(name => {
     const t=_tags.find(x=>x.name===name);
     const style=t?`background:${t.color}22;color:${t.color};border-color:${t.color}55;`:'';
     return `<span class="tag-chip" style="${style}">${esc(name)}<button class="tag-remove" data-book="${bookId}" data-tag="${esc(name)}">×</button></span>`;
   }).join('');
-  const available=_tags.filter(t=>!(bookTags||[]).includes(t.name));
+  const available = [..._tags.filter(t=>!(bookTags||[]).includes(t.name))].sort((a,b)=>a.name.localeCompare(b.name));
   const dd=available.length?`<select class="tag-add-select" data-add-book="${bookId}"><option value="">+ tag</option>${available.map(t=>`<option value="${esc(t.name)}">${esc(t.name)}</option>`).join('')}</select>`:'';
   return chips||dd ? `<div class="book-badges" style="margin-top:6px">${chips}${dd}</div>` : '';
 }
@@ -940,13 +946,21 @@ document.addEventListener('change', e=>{
 
 async function addTagToBook(bookId,tagName) {
   const book=_books.find(b=>b.id===bookId); if(!book) return;
-  await apiPatch(`/api/library/${bookId}`,{tags:[...new Set([...(book.tags||[]),tagName])]});
-  loadAndRenderLibrary();
+  const res = await apiPatch(`/api/library/${bookId}`,{tags:[...new Set([...(book.tags||[]),tagName])]});
+  const updated = await res.json();
+  // FIX: update cache in place rather than full reload, to avoid losing open edit panels
+  const idx = _books.findIndex(b => b.id === bookId);
+  if (idx !== -1) _books[idx] = updated;
+  renderLibrary(_books);
 }
 async function removeTagFromBook(bookId,tagName) {
   const book=_books.find(b=>b.id===bookId); if(!book) return;
-  await apiPatch(`/api/library/${bookId}`,{tags:(book.tags||[]).filter(t=>t!==tagName)});
-  loadAndRenderLibrary();
+  const res = await apiPatch(`/api/library/${bookId}`,{tags:(book.tags||[]).filter(t=>t!==tagName)});
+  const updated = await res.json();
+  // FIX: update cache in place
+  const idx = _books.findIndex(b => b.id === bookId);
+  if (idx !== -1) _books[idx] = updated;
+  renderLibrary(_books);
 }
 
 // ── Library ───────────────────────────────────
@@ -971,7 +985,7 @@ function populateFilterDropdowns(books) {
   if (tagSel) {
     const current = tagSel.value;
     tagSel.innerHTML = '<option value="">All tags</option>' +
-      _tags.map(t => `<option value="${esc(t.name)}"${current===t.name?' selected':''}>${esc(t.name)}</option>`).join('');
+      [..._tags].sort((a,b) => a.name.localeCompare(b.name)).map(t => `<option value="${esc(t.name)}"${current===t.name?' selected':''}>${esc(t.name)}</option>`).join('');
   }
 }
 
@@ -1061,7 +1075,6 @@ function renderLibrary(books) {
 
 function primaryScoreHtml(scores, lang) {
   if (!scores) return '';
-  // Pick the most meaningful score for the language
   let key = null, label = null;
   if (lang === 'es') {
     if (scores.szigriszt != null)  { key = 'szigriszt';  label = 'Szigriszt'; }
@@ -1109,10 +1122,10 @@ function bookRowHtml(book) {
     <div class="book-footer" id="bookedit-${book.id}" style="display:none">
       <div class="form-group"><div class="form-label">Author</div>
         <input type="text" style="width:160px" value="${esc(book.author||'')}" placeholder="—"
-          onchange="updateBook(${book.id},'author',this.value)">
+          onchange="stageEdit(${book.id},'author',this.value)">
       </div>
       <div class="form-group"><div class="form-label">Language</div>
-        <select onchange="updateBook(${book.id},'lang',this.value)">
+        <select onchange="stageEdit(${book.id},'lang',this.value)">
           <option value="">—</option>
           <option value="es" ${book.lang==='es'?'selected':''}>Spanish</option>
           <option value="en" ${book.lang==='en'?'selected':''}>English</option>
@@ -1124,85 +1137,115 @@ function bookRowHtml(book) {
       </div>
       <div class="form-group"><div class="form-label">Words</div>
         <input type="number" min="0" style="width:90px" value="${book.words||''}" placeholder="—"
-          onchange="updateBook(${book.id},'words',this.value?+this.value:0)">
+          onchange="stageEdit(${book.id},'words',this.value?+this.value:0)">
       </div>
       <div class="form-group"><div class="form-label">Difficulty</div>
-        <select onchange="updateBook(${book.id},'difficulty',this.value?+this.value:null)">
+        <select onchange="stageEdit(${book.id},'difficulty',this.value?+this.value:null)">
           <option value="">— auto —</option>
           ${DIFFICULTY_LEVELS.map(l=>`<option value="${l.value}"${book.difficulty===l.value?' selected':''}>${l.label}</option>`).join('')}
         </select>
       </div>
       <div class="form-group"><div class="form-label">Status</div>
-        <select onchange="updateBook(${book.id},'status',this.value)">
+        <select onchange="stageEdit(${book.id},'status',this.value)">
           ${['planned','reading','paused','finished'].map(s=>`<option value="${s}"${book.status===s?' selected':''}>${s[0].toUpperCase()+s.slice(1)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group"><div class="form-label">Started</div>
-        <input type="date" value="${book.dateStarted||''}" onchange="updateBookSilent(${book.id},'dateStarted',this.value)">
+        <input type="date" value="${book.dateStarted||''}" onchange="stageEdit(${book.id},'dateStarted',this.value)">
       </div>
       <div class="form-group"><div class="form-label">Finished</div>
-        <input type="date" value="${book.dateFinished||''}" onchange="updateBookSilent(${book.id},'dateFinished',this.value)">
+        <input type="date" value="${book.dateFinished||''}" onchange="stageEdit(${book.id},'dateFinished',this.value)">
+      </div>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:flex-end">
+        <button class="btn btn-default btn-sm" onclick="cancelBookEdit(${book.id})">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="commitBookEdit(${book.id})">Done</button>
       </div>
     </div>
   </div>`;
+}
+
+// ── Pending edits buffer ─────────────────────
+// Keyed by book id. Fields are accumulated here and only written to the
+// server (and the library re-rendered) when the user clicks "Done".
+const _pendingEdits = {};  // { [bookId]: { field: value, ... } }
+
+function stageEdit(id, field, val) {
+  if (!_pendingEdits[id]) _pendingEdits[id] = {};
+  _pendingEdits[id][field] = val;
 }
 
 function toggleBookEdit(id) {
   const footer = document.getElementById('bookedit-' + id);
   if (!footer) return;
   const open = footer.style.display !== 'none';
-  footer.style.display = open ? 'none' : 'flex';
-  // Update Edit button label
-  const row = document.getElementById('bookrow-' + id);
-  const btn = row?.querySelector('button.btn-default.btn-sm');
-  if (btn) btn.textContent = open ? 'Edit' : 'Done';
-}
-
-async function updateBookSilent(id, field, val) {
-  // Patch server and update cache without re-rendering — used for date inputs
-  // so typing manually doesn't reset the field mid-edit.
-  await apiPatch(`/api/library/${id}`, {[field]: val});
-  const idx = _books.findIndex(b => b.id === id);
-  if (idx !== -1) _books[idx] = { ..._books[idx], [field]: val };
-}
-
-async function updateBook(id, field, val) {
-  const u = {[field]: val};
-  if (field === 'status') {
-    const t = new Date().toISOString().slice(0,10);
-    if (val === 'reading')  u.dateStarted  = t;
-    if (val === 'finished') u.dateFinished = t;
+  if (open) {
+    // top-right button clicked while open — treat as Cancel
+    cancelBookEdit(id);
+  } else {
+    // "Edit" clicked — open panel, clear stale staged edits
+    delete _pendingEdits[id];
+    footer.style.display = 'flex';
+    const row = document.getElementById('bookrow-' + id);
+    const btn = row?.querySelector('.book-right .btn-default.btn-sm');
+    if (btn) btn.textContent = 'Close';
   }
-  if (field === 'lang') {
+}
+
+function cancelBookEdit(id) {
+  delete _pendingEdits[id];
+  renderLibrary(_books);  // discard — re-render restores original field values
+}
+
+async function commitBookEdit(id) {
+  const edits = _pendingEdits[id] || {};
+  delete _pendingEdits[id];
+
+  // Expand language code to name
+  if (edits.lang != null) {
     const names = {es:'Spanish',en:'English',pt:'Portuguese',fr:'French',de:'German',other:'Other'};
-    u.lang_name = names[val] || val;
+    edits.lang_name = names[edits.lang] || edits.lang;
   }
-  await apiPatch(`/api/library/${id}`, u);
 
-  // Update _books cache and re-render without collapsing the open edit panel
-  _books = await apiGet('/api/library');
-  const wasOpen = document.getElementById('bookedit-'+id)?.style.display !== 'none';
-  renderLibrary(_books);
-  if (wasOpen) {
-    const footer = document.getElementById('bookedit-'+id);
-    if (footer) {
-      footer.style.display = 'flex';
-      const row = document.getElementById('bookrow-'+id);
-      const btn = row?.querySelector('button.btn-default.btn-sm');
-      if (btn) btn.textContent = 'Done';
-    }
+  // Auto-set dates when status changes
+  if (edits.status != null) {
+    const t = new Date().toISOString().slice(0,10);
+    if (edits.status === 'reading'  && !edits.dateStarted)  edits.dateStarted  = t;
+    if (edits.status === 'finished' && !edits.dateFinished) edits.dateFinished = t;
   }
+
+  if (Object.keys(edits).length > 0) {
+    const res = await apiPatch(`/api/library/${id}`, edits);
+    const updated = await res.json();
+    const idx = _books.findIndex(b => b.id === id);
+    if (idx !== -1) _books[idx] = updated;
+    populateFilterDropdowns(_books);
+  }
+
+  // Re-render now that edits are committed — book may move groups
+  renderLibrary(_books);
 }
-async function deleteBook(id) { if(!confirm('Remove this book from your library?')) return; await apiDelete(`/api/library/${id}`); loadAndRenderLibrary(); }
+
+async function deleteBook(id) {
+  if(!confirm('Remove this book from your library?')) return;
+  await apiDelete(`/api/library/${id}`);
+  // FIX: update cache immediately, no full reload needed
+  _books = _books.filter(b => b.id !== id);
+  populateFilterDropdowns(_books);
+  renderLibrary(_books);
+}
+
 async function addToLibrary() {
   const book = window._lastAnalysis; if (!book) return;
   const res = await apiPost('/api/library', book);
   const data = await res.json();
 
   if (res.status === 409 && data.error === 'duplicate_title') {
-    // Show inline duplicate prompt instead of a blocking alert
     const existing = data.existing;
     const container = document.getElementById('analyzerOutput');
+
+    // Remove any existing notice first
+    document.getElementById('duplicateNotice')?.remove();
+
     const notice = document.createElement('div');
     notice.id = 'duplicateNotice';
     notice.className = 'alert alert-warn';
@@ -1215,8 +1258,6 @@ async function addToLibrary() {
         <button class="btn btn-danger btn-sm" id="dupAddAnyway">Add as new entry</button>
         <button class="btn btn-default btn-sm" id="dupCancel">Cancel</button>
       </div>`;
-    // Remove any existing notice first
-    document.getElementById('duplicateNotice')?.remove();
     container.prepend(notice);
 
     document.getElementById('dupUpdateScores').onclick = async () => {
@@ -1227,20 +1268,35 @@ async function addToLibrary() {
         words:    book.words,
       });
       notice.remove();
+      // FIX: refresh _books cache so stats page reflects the updated scores immediately
+      _books = await apiGet('/api/library');
       showTab('library');
     };
+
     document.getElementById('dupAddAnyway').onclick = async () => {
-      // Add with a new id to bypass the id check
-      const copy = { ...book, id: Date.now() };
-      await apiPost('/api/library', copy);
+      // FIX: use force=true so the server skips the title uniqueness check,
+      // and generate a fresh id to avoid any id collision.
+      const copy = { ...book, id: Date.now(), force: true };
+      const forceRes = await apiPost('/api/library', copy);
+      if (!forceRes.ok) {
+        const err = await forceRes.json();
+        alert(err.error || 'Could not add book.');
+        return;
+      }
       notice.remove();
+      // FIX: refresh cache so the new entry appears in the library
+      _books = await apiGet('/api/library');
       showTab('library');
     };
+
     document.getElementById('dupCancel').onclick = () => notice.remove();
     return;
   }
 
   if (!res.ok) { alert(data.error || 'Could not add book.'); return; }
+
+  // FIX: refresh cache before switching tab so library is up to date
+  _books = await apiGet('/api/library');
   showTab('library');
 }
 
@@ -1257,6 +1313,7 @@ function setPeriod(p) {
 
 async function loadAndRenderStatistics() {
   await loadTags();
+  // FIX: always fetch fresh data when switching to statistics tab
   _books = await apiGet('/api/library');
   renderStatistics(_books, _tags);
 }
@@ -1273,21 +1330,19 @@ function filterByPeriod(books, period) {
 
 // Palette for difficulty levels (maps DIFFICULTY_LEVELS values 1–5)
 const DIFF_COLORS = {
-  1: '#2da44e', // very easy — green
-  2: '#57ab5a', // easy — lighter green
-  3: '#d4a72c', // medium — amber
-  4: '#e5534b', // difficult — red-orange
-  5: '#cf222e', // very difficult — red
+  1: '#2da44e',
+  2: '#57ab5a',
+  3: '#d4a72c',
+  4: '#e5534b',
+  5: '#cf222e',
 };
 
-// Generate a palette for tags (cycle through a set of distinct colors)
 const TAG_PALETTE = [
   '#0969da','#8250df','#bf8700','#1a7f37','#cf222e',
   '#0550ae','#6e40c9','#9a6700','#116329','#a40e26',
 ];
 
 function stackedBar(segments, totalWords) {
-  // Horizontal stacked bar — used for difficulty levels
   if (!totalWords) return '<div style="font-size:12px;color:var(--text-muted)">No word counts recorded.</div>';
   const segs = segments.filter(s => s.words > 0);
   if (!segs.length) return '<div style="font-size:12px;color:var(--text-muted)">No data.</div>';
@@ -1314,12 +1369,10 @@ function stackedBar(segments, totalWords) {
 }
 
 function tagBars(tagSegs, totalWords) {
-  // tagSegs: [{label, words, color}], totalWords = language total
   if (!totalWords || !tagSegs.length) return '';
   const segs = tagSegs.filter(s => s.words > 0);
   if (!segs.length) return '<div style="font-size:12px;color:var(--text-muted)">No tagged books with word counts.</div>';
 
-  // Sort: by color (hex string) first, then by words descending within each color group
   const sorted = [...segs].sort((a, b) => {
     const colorCmp = a.color.localeCompare(b.color);
     if (colorCmp !== 0) return colorCmp;
@@ -1358,7 +1411,6 @@ function renderStatistics(books, tags) {
     return;
   }
 
-  // ── Summary: per-language totals ──────────────
   const byLang = {};
   for (const b of fin) {
     const k = b.lang || 'unknown';
@@ -1373,7 +1425,6 @@ function renderStatistics(books, tags) {
   const totalFinished = fin.length;
   const totalWords    = fin.reduce((a, b) => a + (b.words || 0), 0);
 
-  // Summary KV cards
   let html = `<div class="stats-section">
     <div class="kv-grid">
       <div class="kv-card"><div class="kv-label">Finished</div><div class="kv-val">${totalFinished}</div></div>
@@ -1387,7 +1438,6 @@ function renderStatistics(books, tags) {
     </div>
   </div>`;
 
-  // ── Per-language blocks ──────────────────────
   const statTags = tags.filter(t => t.showInStats);
   const tagColorMap = {};
   statTags.forEach((t, i) => { tagColorMap[t.name] = t.color || TAG_PALETTE[i % TAG_PALETTE.length]; });
@@ -1396,7 +1446,6 @@ function renderStatistics(books, tags) {
     const lg = byLang[k];
     const lgWords = lg.words;
 
-    // Difficulty bar
     const diffSegs = DIFFICULTY_LEVELS.map(lvl => {
       const w = lg.books.filter(b => {
         const d = b.difficulty != null ? b.difficulty : scoresToDifficultyValue(b.scores, b.lang);
@@ -1405,7 +1454,6 @@ function renderStatistics(books, tags) {
       return { label: lvl.label, words: w, color: DIFF_COLORS[lvl.value] };
     });
 
-    // Tags — individual bars per tag
     let tagSegs = [];
     if (statTags.length) {
       tagSegs = statTags.map(tag => {

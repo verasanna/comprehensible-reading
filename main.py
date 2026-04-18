@@ -140,24 +140,29 @@ async def api_library_post(request: Request) -> JSONResponse:
     except Exception:
         return JSONResponse({"error": "Invalid JSON."}, status_code=400)
 
+    # force=true bypasses the duplicate-title check (used by "Add as new entry")
+    force = str(book.pop("force", "")).lower() in ("true", "1", "yes")
+
     books = lib_store.load()
 
-    # Check by id
+    # Check by id — always enforced
     if any(b.get("id") == book.get("id") for b in books):
-        return JSONResponse({"error": "Book already exists."}, status_code=409)
+        # Assign a fresh id so the caller doesn't have to
+        book["id"] = int(date.today().strftime("%Y%m%d%H%M%S%f"))
 
-    # Check by title (case-insensitive)
-    title_lower = (book.get("title") or "").strip().lower()
-    if title_lower:
-        existing = next(
-            (b for b in books if (b.get("title") or "").strip().lower() == title_lower),
-            None,
-        )
-        if existing:
-            return JSONResponse(
-                {"error": "duplicate_title", "existing": existing},
-                status_code=409,
+    if not force:
+        # Check by title (case-insensitive)
+        title_lower = (book.get("title") or "").strip().lower()
+        if title_lower:
+            existing = next(
+                (b for b in books if (b.get("title") or "").strip().lower() == title_lower),
+                None,
             )
+            if existing:
+                return JSONResponse(
+                    {"error": "duplicate_title", "existing": existing},
+                    status_code=409,
+                )
 
     book.setdefault("dateAdded", date.today().isoformat())
     book.setdefault("tags", [])
